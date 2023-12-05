@@ -1,0 +1,69 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<mule xmlns="http://www.mulesoft.org/schema/mule/core" xmlns:apikit="http://www.mulesoft.org/schema/mule/mule-apikit" xmlns:doc="http://www.mulesoft.org/schema/mule/documentation" xmlns:ee="http://www.mulesoft.org/schema/mule/ee/core" xmlns:http="http://www.mulesoft.org/schema/mule/http" xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance" xsi:schemaLocation="http://www.mulesoft.org/schema/mule/core http://www.mulesoft.org/schema/mule/core/current/mule.xsd http://www.mulesoft.org/schema/mule/http http://www.mulesoft.org/schema/mule/http/current/mule-http.xsd http://www.mulesoft.org/schema/mule/mule-apikit http://www.mulesoft.org/schema/mule/mule-apikit/current/mule-apikit.xsd http://www.mulesoft.org/schema/mule/ee/core http://www.mulesoft.org/schema/mule/ee/core/current/mule-ee.xsd ">
+    <flow name="uhub-sapi-main">
+        <http:listener config-ref="uhub-sapi-httpListenerConfig" path="/v1/*">
+            <http:response statusCode="#[vars.httpStatus default 200]">
+                <http:headers><![CDATA[#[vars.outboundHeaders default {}]]]></http:headers>
+            </http:response>
+            <http:error-response statusCode="#[vars.httpStatus default 500]">
+                <http:body><![CDATA[#[payload]]]></http:body>
+                <http:headers><![CDATA[#[vars.outboundHeaders default {}]]]></http:headers>
+            </http:error-response>
+        </http:listener>
+        <ee:transform doc:name="Set transaction id" doc:id="e8584a8b-4420-4dae-9b54-39abcaf97fb1" >
+			<ee:message >
+				<ee:set-payload ><![CDATA[%dw 2.0
+output application/json
+---
+payload]]></ee:set-payload>
+			</ee:message>
+			<ee:variables >
+				<ee:set-variable variableName="transactionID" ><![CDATA[attributes.headers.'x-transaction-id' default uuid()]]></ee:set-variable>
+			</ee:variables>
+		</ee:transform>
+		<apikit:router config-ref="uhub-sapi-config" />
+		<error-handler ref="global-error-handler" />
+    </flow>
+    <flow name="uhub-sapi-console">
+        <http:listener config-ref="uhub-sapi-httpListenerConfig" path="/console/*">
+            <http:response statusCode="#[vars.httpStatus default 200]">
+                <http:headers>#[vars.outboundHeaders default {}]</http:headers>
+            </http:response>
+            <http:error-response statusCode="#[vars.httpStatus default 500]">
+                <http:body>#[payload]</http:body>
+                <http:headers>#[vars.outboundHeaders default {}]</http:headers>
+            </http:error-response>
+        </http:listener>
+        <apikit:console config-ref="uhub-sapi-config" />
+        <error-handler>
+            <on-error-propagate type="APIKIT:NOT_FOUND">
+                <ee:transform doc:name="Transform Message">
+                    <ee:message>
+                        <ee:set-payload><![CDATA[%dw 2.0
+output application/json
+---
+{message: "Resource not found"}]]></ee:set-payload>
+                    </ee:message>
+                    <ee:variables>
+                        <ee:set-variable variableName="httpStatus">404</ee:set-variable>
+                    </ee:variables>
+                </ee:transform>
+            </on-error-propagate>
+        </error-handler>
+    </flow>
+    <flow name="put:\cases:application\xml:uhub-sapi-config">
+		<flow-ref doc:name="Flow Reference" doc:id="132e7229-bf47-4f73-9ac3-7b57e2c7afb3" name="update-covid-caseFlow"/>
+    </flow>
+    <flow name="get:\health-check:uhub-sapi-config">
+		<flow-ref doc:name="Flow Reference" doc:id="e7e82382-379b-4139-9ac8-bee81ed054ea" name="health-checkFlow"/>
+    </flow>
+    <flow name="get:\reports:uhub-sapi-config">
+		<flow-ref doc:name="Flow Reference" doc:id="8cbafa3f-2d25-47e0-a05c-ed2096848847" name="get-covid-case-reportsFlow"/>
+    </flow>
+    <flow name="get:\cases\(nationalID):uhub-sapi-config">
+		<flow-ref doc:name="Flow Reference" doc:id="8cb64657-917e-449e-b59e-9ed7fff830db" name="get-covid-case-by-national-idFlow"/>
+    </flow>
+    <flow name="post:\cases:application\json:uhub-sapi-config">
+		<flow-ref doc:name="Flow Reference" doc:id="097cbe4b-c34c-4dc2-93ad-0a5f12768348" name="register-covid-caseFlow"/>
+    </flow>
+</mule>

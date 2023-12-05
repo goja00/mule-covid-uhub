@@ -1,0 +1,38 @@
+<?xml version="1.0" encoding="UTF-8"?>
+
+<mule xmlns:http="http://www.mulesoft.org/schema/mule/http" xmlns:ee="http://www.mulesoft.org/schema/mule/ee/core"
+	xmlns:db="http://www.mulesoft.org/schema/mule/db"
+	xmlns="http://www.mulesoft.org/schema/mule/core" xmlns:doc="http://www.mulesoft.org/schema/mule/documentation" xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance" xsi:schemaLocation="http://www.mulesoft.org/schema/mule/core http://www.mulesoft.org/schema/mule/core/current/mule.xsd
+http://www.mulesoft.org/schema/mule/db http://www.mulesoft.org/schema/mule/db/current/mule-db.xsd
+http://www.mulesoft.org/schema/mule/ee/core http://www.mulesoft.org/schema/mule/ee/core/current/mule-ee.xsd
+http://www.mulesoft.org/schema/mule/http http://www.mulesoft.org/schema/mule/http/current/mule-http.xsd">
+	<flow name="get-covid-case-by-national-idFlow" doc:id="439485a5-5793-448e-9ba1-3cea04422e30" >
+		<set-variable value="#[attributes.uriParams.nationalID]" doc:name="National ID" doc:id="83ee6c97-f6ae-4ace-bac6-5a21aab91006" variableName="national_id" />
+		<db:select doc:name="Select" doc:id="62daba9b-91b0-45c0-af52-3fc48491a0c8" config-ref="Database_Config" >
+			<db:sql ><![CDATA[select * from corona where national_id=:national_id]]></db:sql>
+			<db:input-parameters ><![CDATA[#[{
+	national_id:vars.national_id
+}]]]></db:input-parameters>
+		</db:select>
+		<choice doc:name="Choice" doc:id="bc90f0b4-865e-4600-abe5-507d57437125" >
+			<when expression="#[not isEmpty(payload)]" >
+				<ee:transform doc:name="Transform Message" doc:id="2340ef53-23e5-4922-b7de-89b5fd95b615" >
+					<ee:message >
+						<ee:set-payload ><![CDATA[%dw 2.0
+output application/json
+---
+payload]]></ee:set-payload>
+					</ee:message>
+					<ee:variables >
+						<ee:set-variable variableName="httpCode" ><![CDATA[200]]></ee:set-variable>
+						<ee:set-variable variableName="statusResponse" ><![CDATA["OK"]]></ee:set-variable>
+					</ee:variables>
+				</ee:transform>
+			</when>
+			<otherwise >
+				<raise-error doc:name="Raise error" doc:id="31cfd613-7011-4971-9037-9ff3b6974856" type="CUSTOM:NOT_FOUND" description="The specific case is not found!" />
+			</otherwise>
+		</choice>
+		<error-handler ref="global-error-handler" />
+	</flow>
+</mule>

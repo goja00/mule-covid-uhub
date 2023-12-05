@@ -1,0 +1,93 @@
+<?xml version="1.0" encoding="UTF-8"?>
+
+<mule xmlns:ee="http://www.mulesoft.org/schema/mule/ee/core" xmlns:db="http://www.mulesoft.org/schema/mule/db"
+	xmlns:http="http://www.mulesoft.org/schema/mule/http"
+	xmlns="http://www.mulesoft.org/schema/mule/core" xmlns:doc="http://www.mulesoft.org/schema/mule/documentation" xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance" xsi:schemaLocation="http://www.mulesoft.org/schema/mule/core http://www.mulesoft.org/schema/mule/core/current/mule.xsd
+http://www.mulesoft.org/schema/mule/http http://www.mulesoft.org/schema/mule/http/current/mule-http.xsd
+http://www.mulesoft.org/schema/mule/db http://www.mulesoft.org/schema/mule/db/current/mule-db.xsd
+http://www.mulesoft.org/schema/mule/ee/core http://www.mulesoft.org/schema/mule/ee/core/current/mule-ee.xsd">
+	<flow name="update-covid-caseFlow" doc:id="396e7fec-2a2a-49c3-b4e8-3cec9d03a802" >
+		<set-variable value="#[attributes.queryParams.id]" doc:name="id" doc:id="d7bfb003-bec5-4a49-8fdc-03cac039fe5b" variableName="id" />
+		<ee:transform doc:name="Set correlation and payload" doc:id="131c42da-0a50-47c8-95f8-9ba43d247a49">
+			<ee:message>
+				<ee:set-payload><![CDATA[%dw 2.0
+output application/xml
+---
+{
+	covidCase: {
+		caseID: payload.covidCase.caseID,
+		source: payload.covidCase.source,
+		caseType: payload.covidCase.caseType,
+		firstName: payload.covidCase.firstName,
+		lastName: payload.covidCase.lastName,
+		phone: payload.covidCase.phone,
+		email: payload.covidCase.email,
+		dateOfBirth: payload.covidCase.dateOfBirth,
+		nationalID: payload.covidCase.nationalID,
+		nationalIDType: payload.covidCase.nationalIDType,
+		address: {
+			streetAddress: payload.covidCase.address.streetAddress,
+			city: payload.covidCase.address.city,
+			state: payload.covidCase.address.state,
+			postal: payload.covidCase.address.postal,
+			country: payload.covidCase.address.country
+		}
+	}
+}]]></ee:set-payload>
+			</ee:message>
+			<ee:variables>
+				<ee:set-variable variableName="correlationID"><![CDATA[attributes.headers."x-correlation-id" default ""]]></ee:set-variable>
+			</ee:variables>
+		</ee:transform>
+		<db:update doc:name="Update" doc:id="a31f6abb-97b4-45cb-bb02-05c808981f0b" config-ref="Database_Config" autoGenerateKeys="true">
+			<db:sql><![CDATA[update corona
+set source=:source,
+	case_type=:case_type,
+	first_name=:first_name,
+	last_name=:last_name,
+	phone=:phone,
+	email=:email,
+	date_of_birth=:date_of_birth,
+	national_id=:national_id,
+	national_id_type=:national_id_type,
+	street_address=:street_address,
+	city=:city,
+	state=:state,
+	postal=:postal,
+	country=:country,
+	update_date=:update_date
+	where id=:id]]></db:sql>
+			<db:input-parameters><![CDATA[#[{
+	source:payload.covidCase.source,
+	case_type:payload.covidCase.caseType,
+	first_name:payload.covidCase.firstName,
+	last_name:payload.covidCase.lastName,
+	phone:payload.covidCase.phone,
+	email:payload.covidCase.email,
+	date_of_birth:payload.covidCase.dateOfBirth,
+	national_id:payload.covidCase.nationalID,
+	national_id_type:payload.covidCase.nationalIDType,
+	street_address:payload.covidCase.address.streetAddress,
+	city:payload.covidCase.address.city,
+	state:payload.covidCase.address.state,
+	postal:payload.covidCase.address.postal,
+	country:payload.covidCase.address.country,
+	id:vars.id,
+	update_date:now() as String {format:"yyyy-MM-dd"}
+}]]]></db:input-parameters>
+		</db:update>
+		<ee:transform doc:name="Transform Message" doc:id="41d5f990-0e7d-4736-9756-397bbda897d7">
+			<ee:message>
+				<ee:set-payload><![CDATA[%dw 2.0
+output application/xml
+---
+{
+	covid_case:{
+		id:vars.id
+	}
+}]]></ee:set-payload>
+			</ee:message>
+		</ee:transform>
+		<logger level="INFO" doc:name="Logger" doc:id="e391e523-f36a-4349-a74c-f826e6814df4" />
+	</flow>
+</mule>

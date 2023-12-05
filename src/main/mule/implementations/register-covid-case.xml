@@ -1,0 +1,68 @@
+<?xml version="1.0" encoding="UTF-8"?>
+
+<mule xmlns:ee="http://www.mulesoft.org/schema/mule/ee/core" xmlns:db="http://www.mulesoft.org/schema/mule/db"
+	xmlns:http="http://www.mulesoft.org/schema/mule/http"
+	xmlns="http://www.mulesoft.org/schema/mule/core" xmlns:doc="http://www.mulesoft.org/schema/mule/documentation" xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance" xsi:schemaLocation="http://www.mulesoft.org/schema/mule/core http://www.mulesoft.org/schema/mule/core/current/mule.xsd
+http://www.mulesoft.org/schema/mule/http http://www.mulesoft.org/schema/mule/http/current/mule-http.xsd
+http://www.mulesoft.org/schema/mule/db http://www.mulesoft.org/schema/mule/db/current/mule-db.xsd
+http://www.mulesoft.org/schema/mule/ee/core http://www.mulesoft.org/schema/mule/ee/core/current/mule-ee.xsd">
+	<flow name="register-covid-caseFlow" doc:id="7c625c4a-957a-42e2-9fcf-fc60054cbeb6" >
+		<set-variable value="#[payload.nationalID]" doc:name="National ID" doc:id="4f08d69c-209a-48ca-b0c3-19bd7c1e6699" variableName="nationalD" />
+		<ee:transform doc:name="Set correlation and payload" doc:id="f8072e04-562d-4968-b9ff-6a5c1db99b81" >
+			<ee:message >
+				<ee:set-payload ><![CDATA[%dw 2.0
+output application/json
+---
+payload]]></ee:set-payload>
+			</ee:message>
+			<ee:variables >
+				<ee:set-variable variableName="correlationID" ><![CDATA[attributes.headers."x-correlation-id" default ""]]></ee:set-variable>
+			</ee:variables>
+		</ee:transform>
+		<db:insert doc:name="Insert" doc:id="dfcc1fa6-47d1-4bb3-92cf-b233140ef990" config-ref="Database_Config">
+			<db:sql ><![CDATA[insert into corona (source,case_type,first_name,last_name,phone,email,date_of_birth,national_id,national_id_type,street_address,city,state,postal,country,create_date) 
+values(:source,:case_type,:first_name,:last_name,:phone,:email,:date_of_birth,:national_id,:national_id_type,:street_address,:city,:state,:postal,:country,:create_date)]]></db:sql>
+			<db:input-parameters ><![CDATA[#[{
+	source:payload.source,
+	case_type:payload.caseType,
+	first_name:payload.firstName,
+	last_name:payload.lastName,
+	phone:payload.phone,
+	email:payload.email,
+	date_of_birth:payload.dateOfBirth,
+	national_id:payload.nationalID,
+	national_id_type:payload.nationalIDType,
+	street_address:payload.address.streetAddress,
+	city:payload.address.city,
+	state:payload.address.state,
+	postal:payload.address.postal,
+	country:payload.address.country,
+	create_date:now() as String {format:"uuuu-MM-dd"},
+}]]]></db:input-parameters>
+		</db:insert>
+		<db:select doc:name="Select" doc:id="fb894984-2c61-4b2b-9d99-69a7223ea60a" config-ref="Database_Config">
+			<db:sql ><![CDATA[select max(id) from corona where national_id=:national_id]]></db:sql>
+			<db:input-parameters ><![CDATA[#[{
+	national_id:vars.nationalD
+
+}]]]></db:input-parameters>
+		</db:select>
+		<ee:transform doc:name="Response" doc:id="b6175cfd-68bb-4202-8159-1acefbd4e37f" >
+			<ee:message >
+				<ee:set-payload ><![CDATA[%dw 2.0
+output application/json
+---
+{
+	"message":"Covid case successfully added!",
+	"case_id":payload."max(id)"[0],
+	"transaction_id":vars.transactionID
+}
+]]></ee:set-payload>
+			</ee:message>
+			<ee:variables >
+				<ee:set-variable variableName="httpStatus" ><![CDATA[201
+]]></ee:set-variable>
+			</ee:variables>
+		</ee:transform>
+	</flow>
+</mule>

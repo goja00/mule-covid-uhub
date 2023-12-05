@@ -1,0 +1,44 @@
+<?xml version="1.0" encoding="UTF-8"?>
+
+<mule xmlns:ee="http://www.mulesoft.org/schema/mule/ee/core" xmlns:db="http://www.mulesoft.org/schema/mule/db"
+	xmlns:http="http://www.mulesoft.org/schema/mule/http"
+	xmlns="http://www.mulesoft.org/schema/mule/core" xmlns:doc="http://www.mulesoft.org/schema/mule/documentation" xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance" xsi:schemaLocation="http://www.mulesoft.org/schema/mule/core http://www.mulesoft.org/schema/mule/core/current/mule.xsd
+http://www.mulesoft.org/schema/mule/http http://www.mulesoft.org/schema/mule/http/current/mule-http.xsd
+http://www.mulesoft.org/schema/mule/db http://www.mulesoft.org/schema/mule/db/current/mule-db.xsd
+http://www.mulesoft.org/schema/mule/ee/core http://www.mulesoft.org/schema/mule/ee/core/current/mule-ee.xsd">
+	<flow name="get-covid-case-reportsFlow" doc:id="a8f5bd40-de45-43d2-8971-eca44bece894" >
+		<set-variable value="#[attributes.queryParams.state]" doc:name="State" doc:id="8d513971-7c9a-4c3f-90db-dca868f64f6e" variableName="state" />
+		<choice doc:name="Choice" doc:id="755bea28-a862-40b9-8b17-aea2156fd4cf" >
+			<when expression="#[not isEmpty(vars.state)]" >
+				<db:select doc:name="Select" doc:id="9416eb76-036c-46b2-882e-bc39ded5d61f" config-ref="Database_Config" >
+					<db:sql ><![CDATA[select * from corona where state=:state]]></db:sql>
+					<db:input-parameters ><![CDATA[#[{
+	state:vars.state
+}]]]></db:input-parameters>
+				</db:select>
+				<ee:transform doc:name="Transform Message" doc:id="fcec0000-1c3c-4a52-8440-6cb91432cd7e" >
+					<ee:message >
+						<ee:set-payload ><![CDATA[%dw 2.0
+output application/json
+---
+payload]]></ee:set-payload>
+					</ee:message>
+				</ee:transform>
+			</when>
+			<otherwise >
+				<db:select doc:name="Select" doc:id="021a3ca0-48ff-45a9-a4c2-6defc763c649" config-ref="Database_Config" >
+					<db:sql ><![CDATA[select * from corona ]]></db:sql>
+				</db:select>
+				<ee:transform doc:name="Transform Message" doc:id="33adb216-d48a-4cb6-af07-00e8a2229399" >
+					<ee:message >
+						<ee:set-payload ><![CDATA[%dw 2.0
+output application/json
+---
+payload]]></ee:set-payload>
+					</ee:message>
+				</ee:transform>
+			</otherwise>
+		</choice>
+		<error-handler ref="global-error-handler" />
+	</flow>
+</mule>
